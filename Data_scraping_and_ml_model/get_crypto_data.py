@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime
+import numpy as np  # Import numpy for handling NaN values
 
 def fetch_crypto_data(crypto_pair, start_date):
     """
@@ -13,45 +14,44 @@ def fetch_crypto_data(crypto_pair, start_date):
     Returns:
     - DataFrame: Contains Date, Open, High, Low, and Close prices.
     """
-    # Convert start_date to timestamp
+    # Convert start_date to UNIX timestamp
     start_timestamp = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp())
-
-    # Parse crypto_pair into individual symbols
+    # Parse crypto_pair into individual symbols (e.g., BTC/USD to BTC and USD)
     fsym, tsym = crypto_pair.split('/')
 
     # Define API endpoint and parameters
     url = "https://min-api.cryptocompare.com/data/v2/histoday"
     params = {
-        'fsym': fsym,            # From symbol
-        'tsym': tsym,            # To symbol
-        'limit': 2000,           # Max days to fetch in one request
-        'toTs': start_timestamp  # End timestamp (fetches data from start date onward)
+        'fsym': fsym,
+        'tsym': tsym,
+        'limit': 2000,
+        'toTs': start_timestamp
     }
 
-    # API Key (register at CryptoCompare to get one if required)
+    # Define the headers with your API key
     api_key = "af387748d6eaba1f35e3d283cad9dcaf8dc7504039d637dc71fbcd9874bcd630"
-    headers = {
-        'authorization': f'Apikey {api_key}'
-    }
+    headers = {'authorization': f'Apikey {api_key}'}
 
-    # Send request
+    # Send request to CryptoCompare API
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
 
-    # Check for errors in response
+    # Check for errors in the API response
     if data['Response'] != 'Success':
         raise Exception("Error fetching data from CryptoCompare:", data['Message'])
 
-    # Extract data
+    # Extract historical data and convert to DataFrame
     historical_data = data['Data']['Data']
-    # Convert to DataFrame
     df = pd.DataFrame(historical_data)
+
+    # Convert UNIX timestamp to datetime for readability
     df['time'] = pd.to_datetime(df['time'], unit='s')
+    # Rename columns to match the desired format
     df.rename(columns={'time': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close'}, inplace=True)
+    # Select and order columns
     df = df[['Date', 'Open', 'High', 'Low', 'Close']]
 
     return df
-
 
 def calculate_metrics(data, variable1, variable2):
     """
@@ -66,11 +66,11 @@ def calculate_metrics(data, variable1, variable2):
     - DataFrame: The input DataFrame with added metric columns.
     """
 
-    # Historical High and Low prices over the last `variable1` days
+    # Calculate historical high and low prices over the last `variable1` days
     data[f'High_Last_{variable1}_Days'] = data['High'].rolling(window=variable1, min_periods=1).max()
     data[f'Low_Last_{variable1}_Days'] = data['Low'].rolling(window=variable1, min_periods=1).min()
 
-    # Days since Historical High and Low
+    # Calculate days since historical high and low
     data[f'Days_Since_High_Last_{variable1}_Days'] = data.apply(
         lambda row: (row['Date'] - data.loc[:row.name, 'Date'][data['High'][:row.name + 1] == row[f'High_Last_{variable1}_Days']].iloc[-1]).days
         if pd.notna(row[f'High_Last_{variable1}_Days']) else np.nan, axis=1
@@ -80,32 +80,33 @@ def calculate_metrics(data, variable1, variable2):
         if pd.notna(row[f'Low_Last_{variable1}_Days']) else np.nan, axis=1
     )
 
-    # Percentage difference from Historical High and Low
+    # Calculate percentage difference from historical high and low
     data[f'%_Diff_From_High_Last_{variable1}_Days'] = (data['Close'] - data[f'High_Last_{variable1}_Days']) / data[f'High_Last_{variable1}_Days'] * 100
     data[f'%_Diff_From_Low_Last_{variable1}_Days'] = (data['Close'] - data[f'Low_Last_{variable1}_Days']) / data[f'Low_Last_{variable1}_Days'] * 100
 
-    # Future High and Low prices over the next `variable2` days
+    # Calculate future high and low prices over the next `variable2` days
     data[f'High_Next_{variable2}_Days'] = data['High'].shift(-variable2).rolling(window=variable2, min_periods=1).max()
     data[f'Low_Next_{variable2}_Days'] = data['Low'].shift(-variable2).rolling(window=variable2, min_periods=1).min()
 
-    # Percentage difference from Future High and Low
+    # Calculate percentage difference from future high and low
     data[f'%_Diff_From_High_Next_{variable2}_Days'] = (data['Close'] - data[f'High_Next_{variable2}_Days']) / data[f'High_Next_{variable2}_Days'] * 100
     data[f'%_Diff_From_Low_Next_{variable2}_Days'] = (data['Close'] - data[f'Low_Next_{variable2}_Days']) / data[f'Low_Next_{variable2}_Days'] * 100
 
     return data
 
-
 def main():
-    # fetch initial crypto data
+    # Fetch initial cryptocurrency data
     data = fetch_crypto_data("BTC/USD", "2024-01-01")
-    #print(data)
 
-    # Transform the data
+    # Transform data: set date to datetime and calculate metrics
     data['Date'] = pd.to_datetime(data['Date'])
-    variable1, variable2 = 7, 5
+    variable1, variable2 = 7, 5  # Look-back and look-forward periods
     data = calculate_metrics(data, variable1, variable2)
+
+    # Output transformed data
     print(data)
-    #data.to_csv("crypto_data1.csv", index=False)
+    # Optionally save data to CSV
+    # data.to_csv("crypto_data1.csv", index=False)
 
 if __name__ == "__main__":
     main()

@@ -36,10 +36,10 @@ def train_model(data):
         f'%_Diff_From_Low_Next_{variable2}_Days'
     ]
 
-    # Drop rows with NaN values in target columns
+    # Drop rows with missing values in target columns
     data = data.dropna(subset=target_cols)
 
-    # Separate features (X) and targets (y)
+    # Separate the dataset into features (X) and targets (y)
     X = data[feature_cols]
     y = data[target_cols]
 
@@ -55,7 +55,7 @@ def train_model(data):
     rmse = mean_squared_error(y_test, y_pred, squared=False)
     r2 = r2_score(y_test, y_pred)
 
-    # Save the model
+    # Save the model to a file
     joblib.dump(model, 'trained_model.pkl')
 
     # Return the trained model and evaluation metrics
@@ -73,7 +73,7 @@ def predict_outcomes(model, input_features):
     Returns:
     - predictions: A dictionary with predicted values for target variables.
     """
-    # Make predictions
+    # Make a prediction using the input features
     prediction = model.predict([input_features])[0]
     predictions = {
         f'%_Diff_From_High_Next_{variable2}_Days': prediction[0],
@@ -91,7 +91,7 @@ def main():
 
     # Load the trained model and make predictions on new data
     model = joblib.load('trained_model.pkl')
-    new_data = [7, -3.2, 5, 2.5]  # Example input feature values
+    new_data = [7, -3.2, 5, 2.5]  # Example input feature values for prediction
     predictions = predict_outcomes(model, new_data)
     print("Predicted Outcomes:", predictions)
 
