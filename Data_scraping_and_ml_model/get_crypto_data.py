@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 import numpy as np  # Import numpy for handling NaN values
+import os
 
 def fetch_crypto_data(crypto_pair, start_date):
     """
@@ -24,12 +25,12 @@ def fetch_crypto_data(crypto_pair, start_date):
     params = {
         'fsym': fsym,
         'tsym': tsym,
-        'limit': 2000,
+        'limit': 2000, # max limit defined by cryptocompare api is 2000
         'toTs': start_timestamp
     }
 
     # Define the headers with your API key
-    api_key = "af387748d6eaba1f35e3d283cad9dcaf8dc7504039d637dc71fbcd9874bcd630"
+    api_key = os.getenv("CRYPTO_API_KEY")
     headers = {'authorization': f'Apikey {api_key}'}
 
     # Send request to CryptoCompare API
